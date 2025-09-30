@@ -82,6 +82,15 @@
             font-size: 14px;
         }
 
+        .info-box.warning {
+            background: #fff3cd;
+            border-left-color: #ffc107;
+        }
+
+        .info-box.warning h3 {
+            color: #856404;
+        }
+
         .authorize-btn {
             background: #4285f4;
             color: white;
@@ -252,6 +261,38 @@
             text-align: center;
             padding: 20px 0;
         }
+
+        .logout-instructions {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            text-align: left;
+        }
+
+        .logout-instructions ol {
+            margin: 10px 0 10px 20px;
+        }
+
+        .logout-instructions li {
+            margin: 8px 0;
+            color: #555;
+        }
+
+        .google-logout-link {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 10px 20px;
+            background: #dc3545;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            transition: background 0.3s;
+        }
+
+        .google-logout-link:hover {
+            background: #c82333;
+        }
     </style>
 </head>
 <body>
@@ -278,6 +319,21 @@
                 <button class="authorize-btn" onclick="completeAuthorization()" style="background: #28a745;">
                     ✓ I'm Authorized - Start App
                 </button>
+
+                <div id="logoutInstructions" class="logout-instructions" style="display: none;">
+                    <div class="info-box warning">
+                        <h3>⚠️ To switch accounts or fully logout from Google:</h3>
+                        <p>Due to security restrictions, this app cannot log you out of Google directly. To use a different Google account or completely logout:</p>
+                    </div>
+                    <ol>
+                        <li>Click the button below to go to Google's logout page</li>
+                        <li>Sign out from all Google accounts</li>
+                        <li>Return to this page and authorize with the account you want to use</li>
+                    </ol>
+                    <a href="https://accounts.google.com/Logout" target="_blank" class="google-logout-link">
+                        Logout from Google →
+                    </a>
+                </div>
             </div>
             
             <div id="appSection" style="display: none;">
@@ -306,9 +362,17 @@
         
         let isProcessing = false;
         const AUTH_KEY = 'taskManagerAuthorized';
+        const AUTH_TIMESTAMP_KEY = 'taskManagerAuthTime';
 
         // Check if already authorized on page load
         window.onload = function() {
+            // Check if coming back from logout instructions
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('logout') === 'true') {
+                document.getElementById('logoutInstructions').style.display = 'block';
+                return;
+            }
+
             if (isAuthorized()) {
                 completeAuthorization();
             }
@@ -316,36 +380,57 @@
 
         // Check authorization status
         function isAuthorized() {
-            return sessionStorage.getItem(AUTH_KEY) === 'true';
+            const authStatus = sessionStorage.getItem(AUTH_KEY);
+            const authTime = sessionStorage.getItem(AUTH_TIMESTAMP_KEY);
+            
+            // Check if auth is valid and not expired (optional: add time-based expiry)
+            if (authStatus === 'true' && authTime) {
+                return true;
+            }
+            
+            return false;
         }
 
         // Set authorization status
         function setAuthorized(status) {
             if (status) {
                 sessionStorage.setItem(AUTH_KEY, 'true');
+                sessionStorage.setItem(AUTH_TIMESTAMP_KEY, Date.now().toString());
             } else {
                 sessionStorage.removeItem(AUTH_KEY);
+                sessionStorage.removeItem(AUTH_TIMESTAMP_KEY);
             }
         }
 
         // Logout function
         function logout() {
-            if (confirm('Are you sure you want to logout?')) {
+            if (confirm('Logout from this app?\n\nNote: This will clear your app session. To switch Google accounts, you\'ll need to logout from Google separately.')) {
                 setAuthorized(false);
-                document.getElementById('loginSection').style.display = 'block';
-                document.getElementById('appSection').style.display = 'none';
-                document.getElementById('logoutBtn').style.display = 'none';
+                
+                // Clear all app data
                 document.getElementById('taskList').innerHTML = '';
                 document.getElementById('taskInput').value = '';
+                
+                // Hide app section
+                document.getElementById('appSection').style.display = 'none';
+                document.getElementById('logoutBtn').style.display = 'none';
+                
+                // Show login section with logout instructions
+                document.getElementById('loginSection').style.display = 'block';
+                document.getElementById('logoutInstructions').style.display = 'block';
+                
                 hideMessage();
-                showMessage('Logged out successfully. Authorize again to access your tasks.', 'info');
+                showMessage('Logged out from app. To switch Google accounts, click the "Logout from Google" button below.', 'info');
             }
         }
 
         // Open authorization window
         function openAuthorization() {
+            // Hide logout instructions when starting fresh authorization
+            document.getElementById('logoutInstructions').style.display = 'none';
+            
             const authWindow = window.open(
-                APPS_SCRIPT_URL + '?action=getTasks',
+                APPS_SCRIPT_URL + '?action=getTasks&t=' + Date.now(),
                 'google_auth',
                 'width=600,height=700,scrollbars=yes'
             );
@@ -359,6 +444,7 @@
         function completeAuthorization() {
             setAuthorized(true);
             document.getElementById('loginSection').style.display = 'none';
+            document.getElementById('logoutInstructions').style.display = 'none';
             document.getElementById('appSection').style.display = 'block';
             document.getElementById('logoutBtn').style.display = 'block';
             loadTasks();
@@ -393,7 +479,7 @@
                 delete window[callbackName];
             };
             
-            script.src = APPS_SCRIPT_URL + '?action=getTasks&callback=' + callbackName;
+            script.src = APPS_SCRIPT_URL + '?action=getTasks&callback=' + callbackName + '&t=' + Date.now();
             script.onerror = function() {
                 isProcessing = false;
                 document.getElementById('loading').style.display = 'none';
