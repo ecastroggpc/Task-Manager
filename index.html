@@ -31,9 +31,30 @@
             margin-bottom: 20px;
         }
         
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
         h1 {
             color: #333;
-            margin-bottom: 10px;
+        }
+        
+        .logout-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        
+        .logout-btn:hover {
+            background: #5a6268;
         }
         
         .subtitle {
@@ -236,7 +257,10 @@
 <body>
     <div class="container">
         <div class="card">
-            <h1>📝 Task Manager</h1>
+            <div class="header">
+                <h1>📝 Task Manager</h1>
+                <button class="logout-btn" id="logoutBtn" onclick="logout()" style="display: none;">Logout</button>
+            </div>
             <p class="subtitle">Your tasks saved in your own Google Spreadsheet</p>
             
             <div id="loginSection" class="login-section">
@@ -281,6 +305,42 @@
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzICA7b0dskNfUWl1xSGbbBJviRfLgwmFVy13f3pI9LeW7N2a-2g_ynJplA6Aoy0vhcxA/exec';
         
         let isProcessing = false;
+        const AUTH_KEY = 'taskManagerAuthorized';
+
+        // Check if already authorized on page load
+        window.onload = function() {
+            if (isAuthorized()) {
+                completeAuthorization();
+            }
+        };
+
+        // Check authorization status
+        function isAuthorized() {
+            return sessionStorage.getItem(AUTH_KEY) === 'true';
+        }
+
+        // Set authorization status
+        function setAuthorized(status) {
+            if (status) {
+                sessionStorage.setItem(AUTH_KEY, 'true');
+            } else {
+                sessionStorage.removeItem(AUTH_KEY);
+            }
+        }
+
+        // Logout function
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                setAuthorized(false);
+                document.getElementById('loginSection').style.display = 'block';
+                document.getElementById('appSection').style.display = 'none';
+                document.getElementById('logoutBtn').style.display = 'none';
+                document.getElementById('taskList').innerHTML = '';
+                document.getElementById('taskInput').value = '';
+                hideMessage();
+                showMessage('Logged out successfully. Authorize again to access your tasks.', 'info');
+            }
+        }
 
         // Open authorization window
         function openAuthorization() {
@@ -297,8 +357,10 @@
 
         // Complete authorization and show app
         function completeAuthorization() {
+            setAuthorized(true);
             document.getElementById('loginSection').style.display = 'none';
             document.getElementById('appSection').style.display = 'block';
+            document.getElementById('logoutBtn').style.display = 'block';
             loadTasks();
         }
 
@@ -312,7 +374,6 @@
             document.getElementById('emptyState').style.display = 'none';
             hideMessage();
             
-            // Use script tag injection to bypass CORS
             const script = document.createElement('script');
             const callbackName = 'handleTasksResponse_' + Date.now();
             
@@ -328,7 +389,6 @@
                     document.getElementById('emptyState').style.display = 'block';
                 }
                 
-                // Cleanup
                 document.body.removeChild(script);
                 delete window[callbackName];
             };
@@ -385,7 +445,6 @@
             addBtn.textContent = 'Adding...';
             hideMessage();
             
-            // Use script tag injection
             const script = document.createElement('script');
             const callbackName = 'handleAddResponse_' + Date.now();
             
@@ -402,7 +461,6 @@
                     showMessage('Failed to add task: ' + (data.error || 'Unknown error'), 'error');
                 }
                 
-                // Cleanup
                 document.body.removeChild(script);
                 delete window[callbackName];
             };
@@ -434,7 +492,6 @@
             }
             hideMessage();
             
-            // Use script tag injection
             const script = document.createElement('script');
             const callbackName = 'handleDeleteResponse_' + Date.now();
             
@@ -452,7 +509,6 @@
                     }
                 }
                 
-                // Cleanup
                 document.body.removeChild(script);
                 delete window[callbackName];
             };
