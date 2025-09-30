@@ -82,15 +82,6 @@
             font-size: 14px;
         }
 
-        .info-box.warning {
-            background: #fff3cd;
-            border-left-color: #ffc107;
-        }
-
-        .info-box.warning h3 {
-            color: #856404;
-        }
-
         .authorize-btn {
             background: #4285f4;
             color: white;
@@ -261,38 +252,6 @@
             text-align: center;
             padding: 20px 0;
         }
-
-        .logout-instructions {
-            margin-top: 15px;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            text-align: left;
-        }
-
-        .logout-instructions ol {
-            margin: 10px 0 10px 20px;
-        }
-
-        .logout-instructions li {
-            margin: 8px 0;
-            color: #555;
-        }
-
-        .google-logout-link {
-            display: inline-block;
-            margin-top: 10px;
-            padding: 10px 20px;
-            background: #dc3545;
-            color: white;
-            text-decoration: none;
-            border-radius: 6px;
-            transition: background 0.3s;
-        }
-
-        .google-logout-link:hover {
-            background: #c82333;
-        }
     </style>
 </head>
 <body>
@@ -300,7 +259,7 @@
         <div class="card">
             <div class="header">
                 <h1>📝 Task Manager</h1>
-                <button class="logout-btn" id="logoutBtn" onclick="logout()" style="display: none;">Logout</button>
+                <button class="logout-btn" id="logoutBtn" onclick="logout()" style="display: none;">Logout from App</button>
             </div>
             <p class="subtitle">Your tasks saved in your own Google Spreadsheet</p>
             
@@ -319,21 +278,6 @@
                 <button class="authorize-btn" onclick="completeAuthorization()" style="background: #28a745;">
                     ✓ I'm Authorized - Start App
                 </button>
-
-                <div id="logoutInstructions" class="logout-instructions" style="display: none;">
-                    <div class="info-box warning">
-                        <h3>⚠️ To switch accounts or fully logout from Google:</h3>
-                        <p>Due to security restrictions, this app cannot log you out of Google directly. To use a different Google account or completely logout:</p>
-                    </div>
-                    <ol>
-                        <li>Click the button below to go to Google's logout page</li>
-                        <li>Sign out from all Google accounts</li>
-                        <li>Return to this page and authorize with the account you want to use</li>
-                    </ol>
-                    <a href="https://accounts.google.com/Logout" target="_blank" class="google-logout-link">
-                        Logout from Google →
-                    </a>
-                </div>
             </div>
             
             <div id="appSection" style="display: none;">
@@ -366,13 +310,6 @@
 
         // Check if already authorized on page load
         window.onload = function() {
-            // Check if coming back from logout instructions
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('logout') === 'true') {
-                document.getElementById('logoutInstructions').style.display = 'block';
-                return;
-            }
-
             if (isAuthorized()) {
                 completeAuthorization();
             }
@@ -383,7 +320,6 @@
             const authStatus = sessionStorage.getItem(AUTH_KEY);
             const authTime = sessionStorage.getItem(AUTH_TIMESTAMP_KEY);
             
-            // Check if auth is valid and not expired (optional: add time-based expiry)
             if (authStatus === 'true' && authTime) {
                 return true;
             }
@@ -402,33 +338,29 @@
             }
         }
 
-        // Logout function
+        // Logout function - ONLY logs out from the app, NOT from Google
         function logout() {
-            if (confirm('Logout from this app?\n\nNote: This will clear your app session. To switch Google accounts, you\'ll need to logout from Google separately.')) {
+            if (confirm('Logout from Task Manager?\n\nNote: You will remain logged into your Google account. You can re-authorize anytime.')) {
+                // Clear app session
                 setAuthorized(false);
                 
-                // Clear all app data
+                // Clear task list and input
                 document.getElementById('taskList').innerHTML = '';
                 document.getElementById('taskInput').value = '';
                 
-                // Hide app section
+                // Hide app section and show login section
                 document.getElementById('appSection').style.display = 'none';
                 document.getElementById('logoutBtn').style.display = 'none';
-                
-                // Show login section with logout instructions
                 document.getElementById('loginSection').style.display = 'block';
-                document.getElementById('logoutInstructions').style.display = 'block';
                 
+                // Show success message
                 hideMessage();
-                showMessage('Logged out from app. To switch Google accounts, click the "Logout from Google" button below.', 'info');
+                showMessage('Logged out from Task Manager. Click "Authorize App" to sign in again with your Google account.', 'info');
             }
         }
 
         // Open authorization window
         function openAuthorization() {
-            // Hide logout instructions when starting fresh authorization
-            document.getElementById('logoutInstructions').style.display = 'none';
-            
             const authWindow = window.open(
                 APPS_SCRIPT_URL + '?action=getTasks&t=' + Date.now(),
                 'google_auth',
@@ -444,9 +376,9 @@
         function completeAuthorization() {
             setAuthorized(true);
             document.getElementById('loginSection').style.display = 'none';
-            document.getElementById('logoutInstructions').style.display = 'none';
             document.getElementById('appSection').style.display = 'block';
             document.getElementById('logoutBtn').style.display = 'block';
+            hideMessage();
             loadTasks();
         }
 
